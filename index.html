@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Trading App - Advanced Engine</title>
+    <style>
+        /* === CSS VARIABLES & THEMES === */
+        :root {
+            --bg-base: #0b0e11; --bg-panel: #181a20; --bg-hover: #2b3139;
+            --text-main: #eaecef; --text-muted: #848e9c; --border: #2b3139;
+            --green: #0ecb81; --red: #f6465d; --blue: #2962ff; --yellow: #fcd535; --purple: #a855f7;
+            --orange: #ff9800;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --chart-grid: #2b3139; --chart-text: #848e9c; --chart-ma10: #2962ff; --chart-ma20: #ff9800;
+            --hl-green: rgba(14, 203, 129, 0.15); --hl-red: rgba(246, 70, 93, 0.15);
+            --hl-blue: rgba(41, 98, 255, 0.15); --hl-yellow: rgba(252, 213, 53, 0.15); --hl-purple: rgba(168, 85, 247, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font); }
+        body { background-color: var(--bg-base); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+
+        /* === HEADER === */
+        header { height: 60px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; flex-shrink: 0; z-index: 10; }
+        .logo { font-size: 1.2rem; font-weight: 800; color: var(--yellow); letter-spacing: 1px; }
+        
+        /* Save / Load Buttons */
+        .header-actions { display: flex; align-items: center; gap: 15px; }
+        .save-load-area { display: flex; gap: 8px; border-right: 1px solid var(--border); padding-right: 15px; }
+        .btn-save, .btn-load { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
+        .btn-save:hover { background: var(--green); color: white; border-color: var(--green);}
+        .btn-load:hover { background: var(--blue); color: white; border-color: var(--blue);}
+
+        .global-info { display: flex; align-items: center; gap: 15px; font-size: 0.85rem; }
+        .info-item { display: flex; flex-direction: column; text-align: right; }
+        .info-label { color: var(--text-muted); font-size: 0.65rem; text-transform: uppercase; }
+        .info-val { font-weight: bold; font-size: 0.85rem;}
+
+        /* === MAIN CONTAINER === */
+        .content-area { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; }
+        .view-section { display: none; padding: 10px; animation: fadeIn 0.3s ease; height: 100%; }
+        .view-section.active { display: block; }
+
+        /* === 1. MARKET UI === */
+        .market-layout { display: grid; grid-template-columns: 320px 1fr; gap: 15px; height: 100%; }
+        
+        .panel-list { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; height: 100%; }
+        .market-tabs { display: flex; background: var(--bg-base); border-bottom: 1px solid var(--border); }
+        .m-tab { flex: 1; text-align: center; font-size: 0.75rem; padding: 12px 6px; cursor: pointer; color: var(--text-muted); font-weight: bold; border-bottom: 2px solid transparent; transition: 0.2s;}
+        .m-tab.active { color: var(--text-main); border-bottom: 2px solid var(--yellow); }
+        .list-header { display: grid; grid-template-columns: 1fr 1fr; padding: 8px 15px; font-size: 0.7rem; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg-base); }
+        .market-list { overflow-y: auto; flex: 1; }
+        .market-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 10px; transition: 0.2s; }
+        .market-item:hover { background: var(--bg-hover); }
+        .market-item.active { background: var(--bg-hover); border-left: 3px solid var(--yellow); }
+        .m-code { font-weight: bold; font-size: 0.95rem; margin-bottom: 2px; }
+        .m-name { font-size: 0.7rem; color: var(--text-muted); }
+        .m-price-col { text-align: right; }
+        .m-price { font-weight: bold; font-size: 0.95rem; font-variant-numeric: tabular-nums; transition: color 0.3s; }
+        .m-change { font-size: 0.75rem; font-weight: 600; }
+
+        .panel-detail-scroll { overflow-y: auto; height: 100%; display: flex; flex-direction: column; gap: 15px; padding-right: 5px; }
+        .card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 15px; display: flex; flex-direction: column;}
+        .btn-back-mobile { display: none; background: transparent; border: none; color: var(--yellow); font-weight: bold; font-size: 0.9rem; margin-bottom: 10px; cursor: pointer; text-align: left;}
+        
+        .detail-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 15px;}
+        .dh-title-area { display: flex; flex-direction: column; gap: 4px; }
+        .dh-code-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;}
+        .dh-code { font-size: 1.5rem; font-weight: bold; }
+        .status-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+        .stat-bullish { background: var(--hl-green); color: var(--green); border: 1px solid var(--green); }
+        .stat-bearish { background: var(--hl-red); color: var(--red); border: 1px solid var(--red); }
+        .stat-uptrend { background: var(--hl-green); color: var(--green); border: 1px solid var(--green); }
+        .stat-downtrend { background: var(--hl-red); color: var(--red); border: 1px solid var(--red); }
+        .stat-sideways { background: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); }
+        .dh-stats { display: flex; gap: 20px; text-align: right; }
+        .dh-stat-box { display: flex; flex-direction: column; }
+        .dh-label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 3px; }
+        .dh-val { font-size: 1.2rem; font-weight: bold; font-variant-numeric: tabular-nums; transition: 0.3s;}
+        
+        /* === ADVANCED CHART CONTAINER === */
+        .chart-container { flex: 1; position: relative; width: 100%; min-height: 550px; background: var(--bg-base); border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;}
+        .canvas-wrapper { position: relative; width: 100%; cursor: crosshair; touch-action: none; }
+        #wrapper-main { flex: 7; border-bottom: 1px solid var(--border); }
+        #wrapper-rsi { flex: 3; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        .chart-tooltip { position: absolute; background: rgba(0,0,0,0.85); color: white; padding: 10px; border-radius: 6px; font-size: 0.75rem; pointer-events: none; opacity: 0; border: 1px solid var(--border); z-index: 10; font-family: monospace; white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: opacity 0.1s;}
+        .tooltip-row { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 3px; }
+        .tooltip-lbl { color: var(--text-muted); }
+
+        /* Trade Panel */
+        .trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .port-info { background: var(--bg-base); padding: 15px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; justify-content: center;}
+        .port-row { display: flex; justify-content: space-between; font-size: 0.85rem; border-bottom: 1px dashed var(--border); padding-bottom: 5px;}
+        .port-row span { color: var(--text-muted); }
+        .port-row strong { color: var(--text-main); }
+        .action-area { display: flex; flex-direction: column; gap: 10px; }
+        .input-wrapper { display: flex; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; transition: 0.2s;}
+        .input-wrapper:focus-within { border-color: var(--yellow); }
+        .input-wrapper input { flex: 1; background: transparent; border: none; color: var(--text-main); padding: 12px; font-size: 1rem; outline: none; font-weight: bold;}
+        .input-wrapper span { padding: 12px; color: var(--text-muted); font-size: 0.85rem; background: rgba(255,255,255,0.02); font-weight: bold; border-left: 1px solid var(--border);}
+        .perc-btns { display: flex; gap: 6px; }
+        .perc-btn { flex: 1; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 0; font-size: 0.8rem; border-radius: 4px; cursor: pointer; transition: 0.2s; font-weight: bold;}
+        .perc-btn:hover { background: var(--bg-hover); color: var(--text-main); border-color: var(--text-muted);}
+        .trade-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-trade { padding: 15px; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; color: white; transition: all 0.2s; position: relative; overflow: hidden;}
+        .btn-buy-action { background: var(--green); }
+        .btn-sell-action { background: var(--red); }
+        .btn-trade:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2);}
+        .btn-trade:active:not(:disabled) { transform: translateY(0); }
+        .btn-trade:disabled { opacity: 0.6; cursor: wait; transform: none; }
+        
+        .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: white; animation: spin 1s linear infinite; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        /* History Table */
+        .card-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .history-table th { text-align: left; padding: 10px; color: var(--text-muted); background: var(--bg-base); border-bottom: 1px solid var(--border);}
+        .history-table td { padding: 10px; border-bottom: 1px solid var(--border); }
+        .history-table tr:hover { background: var(--bg-hover); }
+
+        /* === 2. EVENT/NEWS UI === */
+        .event-container { max-width: 800px; margin: 0 auto; padding-bottom: 20px; height: 100%; display: flex; flex-direction: column;}
+        .news-filter-bar { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; flex-shrink: 0;}
+        .news-filter-btn { background: var(--bg-panel); border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; color: var(--text-muted); font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; white-space: nowrap; font-weight: bold; }
+        .news-filter-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+        .news-filter-btn.active { border-color: var(--blue); color: var(--text-main); background: var(--hl-blue); }
+        .news-count { background: var(--bg-base); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; border: 1px solid var(--border);}
+        .trend-icon { font-size: 1rem; }
+        .trend-up { color: var(--green); }
+        .trend-down { color: var(--red); }
+        .news-feed { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; padding-right: 5px;}
+        .news-item { background: var(--bg-panel); padding: 15px; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--border); transition: all 0.3s; }
+        .news-item.highlight { border-left: 4px solid var(--yellow); background: var(--hl-yellow); box-shadow: 0 4px 15px rgba(252, 213, 53, 0.1); }
+        .news-header { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;}
+        .news-time { font-size: 0.75rem; color: var(--text-muted); font-family: monospace;}
+        .new-tag { color: var(--yellow); font-size: 0.7rem; font-weight: bold; border: 1px solid var(--yellow); padding: 1px 4px; border-radius: 3px; margin-left: 5px;}
+        .news-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; color: var(--text-main); }
+        .news-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;}
+        .news-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .n-badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase;}
+        .n-badge.saham { background: var(--hl-blue); color: #3b82f6; border: 1px solid rgba(41, 98, 255, 0.3); }
+        .n-badge.crypto { background: var(--hl-purple); color: var(--purple); border: 1px solid rgba(168, 85, 247, 0.3); }
+        .n-badge.forex { background: var(--hl-green); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        /* === 3. BOOK UI === */
+        .book-layout { display: flex; gap: 15px; max-width: 1100px; margin: 0 auto; height: 100%; }
+        .book-sidebar { width: 260px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
+        .book-sidebar-header { padding: 15px; font-weight: bold; border-bottom: 1px solid var(--border); color: var(--yellow); letter-spacing: 1px;}
+        .chapter-btn { padding: 15px; text-align: left; background: transparent; border: none; color: var(--text-muted); font-size: 0.85rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; line-height: 1.4;}
+        .chapter-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+        .chapter-btn.active { background: var(--bg-hover); color: var(--blue); font-weight: bold; border-left: 3px solid var(--blue); }
+        .book-main { flex: 1; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; padding: 30px; line-height: 1.6; position: relative;}
+        .book-main h1 { font-size: 1.8rem; color: var(--text-main); margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+        .book-main h2 { font-size: 1.2rem; color: var(--blue); margin-top: 25px; margin-bottom: 10px; }
+        .book-main p, .book-main ul { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 15px; }
+        .book-main ul { padding-left: 20px; }
+        .hl { padding: 2px 6px; border-radius: 4px; font-weight: bold; color: white;}
+        .hl-green { background: rgba(14, 203, 129, 0.2); color: var(--green); border: 1px solid var(--green);}
+        .hl-red { background: rgba(246, 70, 93, 0.2); color: var(--red); border: 1px solid var(--red);}
+        .hl-blue { background: rgba(41, 98, 255, 0.2); color: #3b82f6; border: 1px solid #3b82f6;}
+        .hl-yellow { background: rgba(252, 213, 53, 0.2); color: var(--yellow); border: 1px solid var(--yellow);}
+        .hl-purple { background: rgba(168, 85, 247, 0.2); color: var(--purple); border: 1px solid var(--purple);}
+        .quiz-box { background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-top: 30px; border-left: 4px solid var(--yellow); }
+        .quiz-title { font-weight: bold; color: var(--yellow); margin-bottom: 10px; font-size: 1.1rem; }
+        .quiz-q { font-size: 1rem; margin-bottom: 15px; color: var(--text-main); font-weight: bold;}
+        .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+        .quiz-btn { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-muted); padding: 12px 15px; border-radius: 6px; text-align: left; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+        .quiz-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-main); border-color: var(--text-muted);}
+        .quiz-btn.correct { background: var(--hl-green); border-color: var(--green); color: var(--green); font-weight: bold;}
+        .quiz-btn.wrong { background: var(--hl-red); border-color: var(--red); color: var(--red); text-decoration: line-through;}
+        .quiz-btn:disabled { cursor: not-allowed; }
+        .quiz-explanation { margin-top: 15px; padding: 15px; background: var(--bg-hover); border-radius: 6px; font-size: 0.9rem; display: none; color: var(--text-muted); border-left: 3px solid var(--blue); line-height: 1.5;}
+
+        /* === NOTIFICATIONS & UTILS === */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: var(--bg-panel); border-left: 4px solid var(--green); color: var(--text-main); padding: 15px 20px; border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-size: 0.9rem; font-weight: bold; display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s forwards; opacity: 0; transform: translateX(100%); }
+        .toast.error { border-left-color: var(--red); }
+        
+        .bottom-nav { height: 65px; background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; flex-shrink: 0; z-index: 10; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; height: 100%; transition: 0.2s; }
+        .nav-item:hover { color: var(--text-main); background: rgba(255,255,255,0.02); }
+        .nav-item.active { color: var(--blue); }
+        .nav-icon { font-size: 1.3rem; }
+        .nav-text { font-size: 0.75rem; font-weight: bold; }
+
+        @keyframes flashGreen { 0% { background-color: rgba(14, 203, 129, 0.4); } 100% { background-color: transparent; } }
+        @keyframes flashRed { 0% { background-color: rgba(246, 70, 93, 0.4); } 100% { background-color: transparent; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+        .flash-up { animation: flashGreen 0.5s ease; color: var(--green); }
+        .flash-down { animation: flashRed 0.5s ease; color: var(--red); }
+        .text-green { color: var(--green) !important; }
+        .text-red { color: var(--red) !important; }
+
+        /* RESPONSIVE */
+        @media (max-width: 992px) {
+            .market-layout { display: block; }
+            .panel-list { display: flex; } 
+            .panel-detail-scroll { display: none; } 
+            .market-layout.show-detail .panel-list { display: none; }
+            .market-layout.show-detail .panel-detail-scroll { display: flex; }
+            .btn-back-mobile { display: block; }
+            .trade-grid { grid-template-columns: 1fr; }
+            .book-layout { flex-direction: column; }
+            .book-sidebar { width: 100%; flex-direction: row; overflow-x: auto; flex-shrink: 0; border-radius: 4px; border-bottom: none;}
+            .book-sidebar-header { display: none; }
+            .chapter-btn { white-space: nowrap; border-bottom: none; border-right: 1px solid var(--border); border-left: none !important;}
+            .chapter-btn.active { border-bottom: 3px solid var(--blue); }
+            .chart-container { min-height: 400px; }
+        }
+        @media (max-width: 600px) { 
+            .global-info .info-item:not(:last-child) { display: none; } 
+            .hide-mobile { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <header>
+        <div class="logo">PRO.TRADE</div>
+        <div class="header-actions">
+            <div class="save-load-area">
+                <button class="btn-save" onclick="saveGameProgress()" id="btn-save">💾 <span class="hide-mobile">Simpan</span></button>
+                <button class="btn-load" onclick="loadGameProgress()" id="btn-load">📂 <span class="hide-mobile">Muat</span></button>
+            </div>
+            <div class="global-info">
+                <div class="info-item"><span class="info-label">Net Worth</span><span class="info-val text-green" id="top-networth">$10,000.00</span></div>
+                <div class="info-item" style="border-left: 1px solid var(--border); padding-left: 15px;"><span class="info-label">Balance</span><span class="info-val" id="top-balance">$10,000.00</span></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="content-area" id="main-scroll">
+        
+        <!-- === 1. MARKET TAB === -->
+        <div id="view-market" class="view-section active">
+            <div class="market-layout" id="market-layout-container">
+                <!-- LIST -->
+                <div class="panel-list">
+                    <div class="market-tabs">
+                        <div class="m-tab active" id="mtab-all" onclick="filterMarket('all')">ALL</div>
+                        <div class="m-tab" id="mtab-saham" onclick="filterMarket('saham')">SAHAM</div>
+                        <div class="m-tab" id="mtab-crypto" onclick="filterMarket('crypto')">CRYPTO</div>
+                        <div class="m-tab" id="mtab-forex" onclick="filterMarket('forex')">FOREX</div>
+                    </div>
+                    <div class="list-header"><div>Nama Aset</div><div style="text-align: right;">Harga / %</div></div>
+                    <div class="market-list" id="market-list-container"></div>
+                </div>
+
+                <!-- DETAIL -->
+                <div class="panel-detail-scroll" id="detail-view">
+                    <button class="btn-back-mobile" onclick="closeDetailMobile()">⬅ Kembali ke Daftar Aset</button>
+
+                    <!-- CHART -->
+                    <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                        <div class="detail-header">
+                            <div class="dh-title-area">
+                                <div class="dh-code-row">
+                                    <span class="dh-code" id="dh-code">BTC/USD</span>
+                                    <span class="status-badge stat-sideways" id="dh-trend">SIDEWAYS ➖</span>
+                                </div>
+                                <div style="font-size: 0.85rem; color: var(--text-muted);" id="dh-name">Bitcoin</div>
+                            </div>
+                            <div class="dh-stats">
+                                <div class="dh-stat-box"><span class="dh-label">Harga Real-time</span><span class="dh-val text-green" id="dh-price">100.00</span></div>
+                                <div class="dh-stat-box"><span class="dh-label">% 24h Change</span><span class="dh-val text-green" id="dh-change">+0.00%</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- ADVANCED CHART WRAPPER -->
+                        <div class="chart-container" onwheel="handleZoom(event)" id="chart-container-div">
+                            <div class="canvas-wrapper" id="wrapper-main">
+                                <canvas id="mainChart"></canvas>
+                            </div>
+                            <div class="canvas-wrapper" id="wrapper-rsi">
+                                <canvas id="rsiChart"></canvas>
+                            </div>
+                            <div class="chart-tooltip" id="chart-tooltip"></div>
+                        </div>
+                    </div>
+
+                    <!-- TRADE PANEL -->
+                    <div class="card">
+                        <div class="card-title">Panel Trading</div>
+                        <div class="trade-grid">
+                            <div class="port-info">
+                                <div class="port-row"><span>Saldo Tersedia:</span> <strong id="port-bal">$10,000.00</strong></div>
+                                <div class="port-row"><span>Aset Dimiliki:</span> <strong id="port-qty">0 Unit</strong></div>
+                                <div class="port-row"><span>Rata-rata Beli:</span> <strong id="port-avg">$0.00</strong></div>
+                                <div class="port-row" style="border:none; margin-top: 5px;"><span>Unrealized P/L:</span> <strong id="port-pl" style="font-size: 1.1rem; color: var(--text-main);">$0.00 (0.00%)</strong></div>
+                            </div>
+                            <div class="action-area">
+                                <div class="input-wrapper"><input type="number" id="order-qty" placeholder="Jumlah Unit..." step="1" min="1" oninput="calcOrder()"><span id="order-unit-label">UNIT</span></div>
+                                <div class="perc-btns">
+                                    <button class="perc-btn" onclick="setQtyPerc(0.25)">25%</button><button class="perc-btn" onclick="setQtyPerc(0.50)">50%</button>
+                                    <button class="perc-btn" onclick="setQtyPerc(0.75)">75%</button><button class="perc-btn" onclick="setQtyPerc(1.00)">100%</button>
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right; margin-bottom: 5px;">Estimasi Biaya: <strong id="order-total" style="color: var(--text-main); font-size: 1rem;">$0.00</strong></div>
+                                <div class="trade-actions">
+                                    <button class="btn-trade btn-buy-action" id="btn-buy" onclick="executeProTrade('buy')"><span class="btn-text">Beli (Buy)</span><div class="spinner"></div></button>
+                                    <button class="btn-trade btn-sell-action" id="btn-sell" onclick="executeProTrade('sell')"><span class="btn-text">Jual (Sell)</span><div class="spinner"></div></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HISTORY -->
+                    <div class="card">
+                        <div class="card-title">Laporan Transaksi</div>
+                        <div style="overflow-x: auto;">
+                            <table class="history-table">
+                                <thead><tr><th>Waktu</th><th>Nama Aset</th><th>Tipe</th><th>Harga Eksekusi</th><th>Jumlah Unit</th><th>Total Biaya</th></tr></thead>
+                                <tbody id="trade-history-body"><tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Belum ada riwayat transaksi.</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- === 2. EVENT TAB === -->
+        <div id="view-event" class="view-section">
+            <div class="event-container">
+                <h2 style="margin-bottom: 15px; color: var(--text-main); font-size: 1.5rem;">📰 Market Radar & News Feed</h2>
+                <div class="news-filter-bar" id="news-filter-bar"></div>
+                <div class="news-feed" id="news-feed-container"></div>
+            </div>
+        </div>
+
+        <!-- === 3. BOOK TAB === -->
+        <div id="view-book" class="view-section">
+            <div class="book-layout">
+                <div class="book-sidebar" id="book-sidebar"></div>
+                <div class="book-main" id="book-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('market', this)"><span class="nav-icon">📊</span><span class="nav-text">Market</span></button>
+        <button class="nav-item" onclick="switchTab('event', this)"><span class="nav-icon">📰</span><span class="nav-text">Berita</span></button>
+        <button class="nav-item" onclick="switchTab('book', this)"><span class="nav-icon">📚</span><span class="nav-text">Academy</span></button>
+    </nav>
+
+<script>
+    // =========================================================================
+    // 💾 LOCAL SAVE / LOAD SYSTEM (Memori HP/Browser)
+    // =========================================================================
+    const SAVE_KEY = 'ProTrading_SaveData';
+
+    function saveGameProgress() {
+        const saveData = {
+            GlobalState: GlobalState,
+            Portfolio: Portfolio,
+            Market: Market,
+            activeEventsQueue: activeEventsQueue,
+            globalNewsFeed: globalNewsFeed
+        };
+        try {
+            localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+            showToast("Progres berhasil disimpan ke memori HP!", false);
+        } catch (e) {
+            console.error("Save Error:", e);
+            showToast("Gagal menyimpan data ke memori!", true);
+        }
+    }
+
+    function loadGameProgress() {
+        try {
+            const dataStr = localStorage.getItem(SAVE_KEY);
+            if (dataStr) {
+                const data = JSON.parse(dataStr);
+                GlobalState = data.GlobalState;
+                Portfolio = data.Portfolio;
+                Market = data.Market;
+                activeEventsQueue = data.activeEventsQueue || [];
+                globalNewsFeed = data.globalNewsFeed || [];
+                
+                // Update UI setelah load
+                document.getElementById('top-balance').innerText = fMoney(Portfolio.balance);
+                document.getElementById('top-networth').innerText = fMoney(Portfolio.networth);
+                
+                buildMarketListDOM();
+                if(selectedAsset) {
+                    updateDetailPanel();
+                    drawCharts();
+                }
+                renderNewsFeed();
+                
+                // Update tabel histori
+                const tbody = document.getElementById('trade-history-body');
+                tbody.innerHTML = '';
+                if(Portfolio.tradeHistory && Portfolio.tradeHistory.length > 0) {
+                    Portfolio.tradeHistory.forEach(t => {
+                        const color = t.type === 'BUY' ? 'var(--green)' : 'var(--red)';
+                        tbody.innerHTML += `<tr><td>${t.time}</td><td><strong>${t.name}</strong></td><td style="color:${color}; font-weight:bold;">${t.type}</td><td>${fNum(t.price)}</td><td>${t.qty}</td><td>${fMoney(t.total)}</td></tr>`;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Belum ada riwayat transaksi.</td></tr>';
+                }
+
+                showToast("Progres berhasil dimuat!", false);
+            } else {
+                showToast("Tidak ada data simpanan ditemukan.", true);
+            }
+        } catch (e) {
+            console.error("Load Error:", e);
+            showToast("Gagal memuat data dari memori!", true);
+        }
+    }
+
+    // =========================================================================
+    // 🧠 1. ARSITEKTUR MODULAR & GLOBAL STATE
+    // =========================================================================
+    const FEE = 0.01; 
+    let gameActive = true;
+    let selectedAsset = null; 
+    let currentMarketFilter = 'all'; 
+    let currentNewsFilter = 'all';
+    
+    let chartZoomLevel = 1.0; 
+    
+    let GlobalState = { usdStrength: 0, interestRate: 0, globalEconomy: 0, riskAppetite: 0, commodityPrice: 0 };
+    let Portfolio = { balance: 10000, networth: 10000, assets: {}, tradeHistory: [] };
+    let Market = {};
+
+    const assetsDB = {
+        "BBCA": { name: "Bank Central Asia", type: "saham", vol: 0.2, price: 100, sens: { interestRate: 1.0, globalEconomy: 0.8, riskAppetite: -0.2 } },
+        "BMRI": { name: "Bank Mandiri", type: "saham", vol: 0.25, price: 100, sens: { interestRate: 1.2, globalEconomy: 0.9, riskAppetite: -0.1 } },
+        "BBRI": { name: "Bank Rakyat Ind.", type: "saham", vol: 0.25, price: 100, sens: { globalEconomy: 1.2, interestRate: 0.8, usdStrength: -0.5 } },
+        "TLKM": { name: "Telkom Indonesia", type: "saham", vol: 0.15, price: 100, sens: { globalEconomy: 0.5, interestRate: 0.2 } }, 
+        "ASII": { name: "Astra Internasional", type: "saham", vol: 0.3, price: 100, sens: { globalEconomy: 1.0, interestRate: -0.5 } },
+        "UNVR": { name: "Unilever Indonesia", type: "saham", vol: 0.15, price: 100, sens: { globalEconomy: 0.4, commodityPrice: -0.3 } }, 
+        "ADRO": { name: "Adaro Energy", type: "saham", vol: 0.4, price: 100, sens: { commodityPrice: 1.5, globalEconomy: -0.2 } },
+        "INCO": { name: "Vale Indonesia", type: "saham", vol: 0.4, price: 100, sens: { commodityPrice: 1.2, riskAppetite: 0.5 } },
+        "GOTO": { name: "GoTo Gojek Tokopedia", type: "saham", vol: 0.8, price: 100, sens: { riskAppetite: 1.5, interestRate: -1.2, usdStrength: -0.8 } }, 
+        "ICBP": { name: "Indofood CBP", type: "saham", vol: 0.15, price: 100, sens: { globalEconomy: 0.5, commodityPrice: -0.4 } },
+
+        "BTC":  { name: "Bitcoin", type: "crypto", vol: 0.8, price: 100, sens: { usdStrength: -1.2, riskAppetite: 1.0, globalEconomy: -0.2 } },
+        "ETH":  { name: "Ethereum", type: "crypto", vol: 0.9, price: 100, sens: { riskAppetite: 1.2, usdStrength: -1.0 } },
+        "BNB":  { name: "Binance Coin", type: "crypto", vol: 0.85, price: 100, sens: { riskAppetite: 1.0, usdStrength: -0.8 } },
+        "SOL":  { name: "Solana", type: "crypto", vol: 1.2, price: 100, sens: { riskAppetite: 1.5, usdStrength: -1.0 } },
+        "XRP":  { name: "Ripple", type: "crypto", vol: 0.7, price: 100, sens: { riskAppetite: 0.8, globalEconomy: 0.2 } },
+        "ADA":  { name: "Cardano", type: "crypto", vol: 0.8, price: 100, sens: { riskAppetite: 0.9, usdStrength: -0.7 } },
+        "DOGE": { name: "Dogecoin", type: "crypto", vol: 1.8, price: 100, sens: { riskAppetite: 2.0, usdStrength: -0.5 } }, 
+        "MATIC":{ name: "Polygon", type: "crypto", vol: 1.1, price: 100, sens: { riskAppetite: 1.3, usdStrength: -0.9 } },
+        "LINK": { name: "Chainlink", type: "crypto", vol: 0.9, price: 100, sens: { riskAppetite: 1.1, usdStrength: -0.8 } },
+        "USDT": { name: "Tether", type: "crypto", vol: 0.01, price: 100, sens: { usdStrength: 0.5 } }, 
+
+        "EURUSD":{ name: "Euro / USD", type: "forex", vol: 0.2, price: 100, sens: { usdStrength: -1.0, globalEconomy: 0.5 } },
+        "USDJPY":{ name: "USD / Yen", type: "forex", vol: 0.25, price: 100, sens: { usdStrength: 1.0, riskAppetite: 0.8, globalEconomy: 0.5 } }, 
+        "GBPUSD":{ name: "Pound / USD", type: "forex", vol: 0.3, price: 100, sens: { usdStrength: -1.0, globalEconomy: 0.4 } },
+        "USDCHF":{ name: "USD / Swiss Franc", type: "forex", vol: 0.2, price: 100, sens: { usdStrength: 1.0, riskAppetite: 0.6 } }, 
+        "AUDUSD":{ name: "Aussie / USD", type: "forex", vol: 0.35, price: 100, sens: { usdStrength: -1.0, commodityPrice: 1.2 } }, 
+        "USDCAD":{ name: "USD / Canadian", type: "forex", vol: 0.3, price: 100, sens: { usdStrength: 1.0, commodityPrice: -1.0 } }, 
+        "NZDUSD":{ name: "New Zealand / USD", type: "forex", vol: 0.35, price: 100, sens: { usdStrength: -1.0, riskAppetite: 0.8 } },
+        "USDIDR":{ name: "USD / Rupiah", type: "forex", vol: 0.4, price: 100, sens: { usdStrength: 1.0, globalEconomy: -0.5, interestRate: 0.8 } },
+        "EURJPY":{ name: "Euro / Yen", type: "forex", vol: 0.3, price: 100, sens: { riskAppetite: 1.0, globalEconomy: 0.8 } }, 
+        "GBPJPY":{ name: "Pound / Yen", type: "forex", vol: 0.4, price: 100, sens: { riskAppetite: 1.2, globalEconomy: 0.8 } }
+    };
+
+    const eventsDB = [
+        { title: "The Fed Naikkan Suku Bunga Agresif", cats: ["forex", "saham", "crypto"], effects: { interestRate: 3 }, cred: 1.0, duration: 25, desc: "Bank Sentral AS menaikkan suku bunga untuk menekan inflasi. USD menguat tajam, aset berisiko (saham/crypto) terancam." },
+        { title: "Krisis Perbankan Global Pecah", cats: ["saham", "forex", "crypto"], effects: { globalEconomy: -3 }, cred: 1.0, duration: 30, desc: "Bank-bank besar melaporkan kebangkrutan. Kepanikan melanda bursa saham. Uang lari ke Safe Haven atau Crypto." },
+        { title: "Krisis Pasokan Energi Dunia", cats: ["saham", "forex"], effects: { commodityPrice: 3, globalEconomy: -1 }, cred: 0.9, duration: 20, desc: "Perang membuat harga komoditas meroket. Saham energi panen raya, namun membebani ekonomi negara." },
+        { title: "Persetujuan ETF Bitcoin Spot", cats: ["crypto", "saham"], effects: { riskAppetite: 3 }, cred: 1.0, duration: 25, desc: "Triliunan dolar uang institusional masuk ke market Crypto. Euforia luar biasa (Risk-On)." },
+        { title: "Data Pengangguran AS Memburuk", cats: ["forex", "saham"], effects: { interestRate: -2, globalEconomy: -1 }, cred: 0.8, duration: 20, desc: "Bukti ekonomi melemah. Ekspektasi suku bunga diturunkan untuk merangsang ekonomi." },
+        { title: "Cuitan Influencer: 'Crypto to the Moon'", cats: ["crypto"], effects: { riskAppetite: 1.5 }, cred: 0.2, duration: 10, desc: "Hype di media sosial. Hati-hati, ini seringkali hanya Noise (kredibilitas rendah)." },
+        { title: "Perekonomian China Tumbuh di Bawah Target", cats: ["saham", "forex"], effects: { globalEconomy: -2, commodityPrice: -1.5 }, cred: 0.9, duration: 20, desc: "Permintaan bahan mentah turun, menekan harga komoditas dan saham terkait." },
+        { title: "Revolusi AI Meningkatkan Produktivitas", cats: ["saham", "crypto"], effects: { riskAppetite: 2, globalEconomy: 1 }, cred: 0.8, duration: 25, desc: "Sentimen sektor teknologi (GOTO dkk) meledak positif." },
+        { title: "Rumor Peretasan Bursa Crypto", cats: ["crypto", "forex"], effects: { riskAppetite: -2 }, cred: 0.3, duration: 15, desc: "Kepanikan (FUD) melanda komunitas. Karena ini rumor, efeknya mungkin sementara." },
+        { title: "Stimulus Ekonomi Diumumkan", cats: ["saham", "crypto", "forex"], effects: { interestRate: -3, globalEconomy: 1, riskAppetite: 2 }, cred: 1.0, duration: 30, desc: "Pemerintah mencetak uang baru (Uang Murah). USD melemah, saham dan crypto terbang." }
+    ];
+
+    const fMoney = (n) => '$' + parseFloat(n).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+    const fNum = (n) => parseFloat(n).toFixed(2);
+    const getTime = () => { const d = new Date(); return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ':' + d.getSeconds().toString().padStart(2,'0'); }
+
+    // Init Engine Market: Simpan 60+ candle awal untuk kalkulasi indikator yg mulus
+    Object.keys(assetsDB).forEach(key => {
+        const db = assetsDB[key];
+        Portfolio.assets[key] = { qty: 0, cost: 0 };
+        Market[key] = { ...db, code: key, change: 0, candles: [], currentTick: 0 };
+        let p = db.price;
+        let pO = p;
+        for(let i=0; i<80; i++) {
+            let o = pO; 
+            pO = pO + (Math.random()*2 - 1) * db.vol; 
+            let h = Math.max(o, pO) + Math.random() * db.vol; 
+            let l = Math.min(o, pO) - Math.random() * db.vol;
+            Market[key].candles.push({ time: Date.now() - (80-i)*10000, open: o, high: h, low: l, close: pO });
+        }
+        Market[key].price = pO;
+        Market[key].open24h = pO; 
+    });
+
+    // =========================================================================
+    // ⚙️ 2. MAIN LOOP ENGINE (1 Detik)
+    // =========================================================================
+    let activeEventsQueue = []; 
+    let globalNewsFeed = [];
+    let eventTimer = 0;
+    let nextEventSpawn = 5;
+
+    function EventEngineTick() {
+        eventTimer++;
+        if (eventTimer >= nextEventSpawn) {
+            let numNews = Math.floor(Math.random() * 3) + 3; 
+            let shuffled = [...eventsDB].sort(() => 0.5 - Math.random()); 
+            let selected = shuffled.slice(0, numNews); 
+            let batchId = Date.now();
+            
+            selected.forEach(ev => {
+                activeEventsQueue.push({ ev: ev, ticks: ev.duration, batchId: batchId });
+                globalNewsFeed.unshift({ ...ev, time: getTime(), batchId: batchId });
+            });
+            if (globalNewsFeed.length > 50) globalNewsFeed.length = 50;
+            
+            renderNewsFeed(batchId); 
+            eventTimer = 0;
+            nextEventSpawn = Math.floor(Math.random() * 6) + 5; 
+        }
+
+        for(let k in GlobalState) GlobalState[k] = 0; 
+        activeEventsQueue.forEach(item => {
+            for(let effectKey in item.ev.effects) { GlobalState[effectKey] += (item.ev.effects[effectKey] * item.ev.cred); }
+            item.ticks--; 
+        });
+
+        if (GlobalState.interestRate !== 0) { GlobalState.usdStrength += (GlobalState.interestRate * 0.8); GlobalState.riskAppetite -= (GlobalState.interestRate * 0.5); }
+        if (GlobalState.globalEconomy < 0) { GlobalState.riskAppetite += (GlobalState.globalEconomy * 0.8); GlobalState.usdStrength -= (GlobalState.globalEconomy * 0.5); }
+        if (GlobalState.usdStrength > 0) { GlobalState.riskAppetite -= (GlobalState.usdStrength * 0.3); }
+
+        activeEventsQueue = activeEventsQueue.filter(item => item.ticks > 0);
+    }
+
+    function CoreEngineTick() {
+        if (!gameActive) return;
+        EventEngineTick(); 
+
+        let tNet = Portfolio.balance;
+
+        Object.keys(Market).forEach(key => {
+            let m = Market[key];
+            const oldPrice = m.price;
+            
+            let randomKecil = (Math.random() * 2 - 1) * m.vol;
+            let sensitivityEffect = 0;
+            for(let sensKey in m.sens) { sensitivityEffect += (GlobalState[sensKey] * m.sens[sensKey]); }
+
+            let tickChange = randomKecil + (sensitivityEffect / 5); 
+            tickChange = Math.max(-3, Math.min(3, tickChange));
+
+            m.price *= (1 + (tickChange / 100)); 
+            if(m.price < 0.01) m.price = 0.01;
+            m.change = ((m.price - m.open24h) / m.open24h) * 100;
+
+            let lastCandle = m.candles[m.candles.length - 1];
+            if (m.currentTick >= 9) { 
+                m.candles.push({ time: Date.now(), open: m.price, high: m.price, low: m.price, close: m.price });
+                if(m.candles.length > 80) m.candles.shift(); // Max 80 Candle memori
+                m.currentTick = 0;
+            } else {
+                lastCandle.close = m.price;
+                if (m.price > lastCandle.high) lastCandle.high = m.price;
+                if (m.price < lastCandle.low) lastCandle.low = m.price;
+                m.currentTick++;
+            }
+
+            tNet += Portfolio.assets[key].qty * m.price * (1 - FEE);
+
+            if (key === selectedAsset) {
+                const elPrice = document.getElementById('dh-price');
+                const elListPrice = document.getElementById(`list-price-${key}`);
+                elPrice.innerText = fNum(m.price);
+                const flashClass = m.price >= oldPrice ? 'flash-up text-green' : 'flash-down text-red';
+                elPrice.className = `dh-val ${flashClass}`;
+                if(elListPrice) elListPrice.className = `m-price ${flashClass}`;
+                
+                setTimeout(() => { 
+                    elPrice.className = `dh-val ${m.price >= oldPrice ? 'text-green':'text-red'}`; 
+                    if(elListPrice) elListPrice.className = `m-price ${m.price >= oldPrice ? 'text-green':'text-red'}`; 
+                }, 500);
+            } else {
+                const elListPrice = document.getElementById(`list-price-${key}`);
+                const elListChange = document.getElementById(`list-change-${key}`);
+                if(elListPrice) { elListPrice.innerText = fNum(m.price); elListPrice.className = `m-price ${m.price >= oldPrice ? 'text-green':'text-red'}`; }
+                if(elListChange) { elListChange.innerText = (m.change > 0 ? '+' : '') + fNum(m.change) + '%'; elListChange.style.color = m.change > 0 ? 'var(--green)' : 'var(--red)'; }
+            }
+        });
+
+        Portfolio.networth = tNet; 
+        document.getElementById('top-networth').innerText = fMoney(Portfolio.networth);
+        document.getElementById('top-balance').innerText = fMoney(Portfolio.balance);
+        
+        if (selectedAsset) updateDetailPanel();
+        if(selectedAsset && document.getElementById('view-market').classList.contains('active')) drawCharts();
+    }
+
+    // =========================================================================
+    // 📈 3. ADVANCED CHART UI (MAIN + RSI + S&R)
+    // =========================================================================
+    const canvasMain = document.getElementById('mainChart'); const ctxMain = canvasMain.getContext('2d');
+    const canvasRsi = document.getElementById('rsiChart'); const ctxRsi = canvasRsi.getContext('2d');
+    const tooltip = document.getElementById('chart-tooltip');
+    
+    function handleZoom(e) {
+        if(!selectedAsset) return;
+        e.preventDefault();
+        chartZoomLevel += e.deltaY * -0.001;
+        chartZoomLevel = Math.max(0.5, Math.min(chartZoomLevel, 3.0)); 
+        drawCharts();
+    }
+
+    function resizeCanvas() { 
+        if(!selectedAsset) return;
+        if(document.getElementById('view-market').classList.contains('active')) { 
+            const wrapMain = document.getElementById('wrapper-main');
+            const wrapRsi = document.getElementById('wrapper-rsi');
+            canvasMain.width = wrapMain.clientWidth; canvasMain.height = wrapMain.clientHeight; 
+            canvasRsi.width = wrapRsi.clientWidth; canvasRsi.height = wrapRsi.clientHeight; 
+            drawCharts(); 
+        } 
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function drawCharts() {
+        if (!selectedAsset || !canvasMain.width || !canvasRsi.width) return;
+        ctxMain.clearRect(0, 0, canvasMain.width, canvasMain.height);
+        ctxRsi.clearRect(0, 0, canvasRsi.width, canvasRsi.height);
+        
+        let allCandles = Market[selectedAsset].candles; if (allCandles.length === 0) return;
+
+        let maxVisible = Math.min(allCandles.length, Math.floor(allCandles.length / chartZoomLevel));
+        if(maxVisible < 20) maxVisible = 20; // Butuh setidaknya 20 untuk MA20
+        const candles = allCandles.slice(-maxVisible);
+
+        const padT = 20, padB = 20, padR = 60; 
+        const wMain = canvasMain.width - padR; const hMain = canvasMain.height - padT - padB;
+        const wRsi = canvasRsi.width - padR; const hRsi = canvasRsi.height - 10 - 10;
+        const cW = Math.max(wMain / candles.length, 3); const sp = cW * 0.15;
+        const getX = (i) => i * cW + (cW/2); 
+
+        // --- 1. Kalkulasi Indikator ---
+        let ma10 = [], ma20 = [], rsiArray = [], gains = [], losses = [];
+        let support = Infinity, resistance = -Infinity;
+
+        // Support & Resistance (Ambil dari 30 candle terakhir yang terlihat)
+        let srLookback = Math.min(candles.length, 30);
+        let recentCandles = candles.slice(-srLookback);
+        recentCandles.forEach(c => {
+            if(c.low < support) support = c.low;
+            if(c.high > resistance) resistance = c.high;
+        });
+
+        // RSI 14 Logic (Wilder's Smoothing)
+        let avgGain = 0, avgLoss = 0;
+        for (let i = 0; i < allCandles.length; i++) {
+            if (i > 0) {
+                let diff = allCandles[i].close - allCandles[i-1].close;
+                gains.push(Math.max(diff, 0));
+                losses.push(Math.max(-diff, 0));
+            } else { gains.push(0); losses.push(0); }
+            
+            if (i < 14) {
+                if(i === 13) {
+                    for(let j=1; j<=13; j++) { avgGain+=gains[j]; avgLoss+=losses[j]; }
+                    avgGain/=14; avgLoss/=14;
+                    rsiArray.push(100 - (100 / (1 + (avgGain / (avgLoss===0?1:avgLoss)))));
+                } else { rsiArray.push(null); }
+            } else {
+                avgGain = ((avgGain * 13) + gains[i]) / 14;
+                avgLoss = ((avgLoss * 13) + losses[i]) / 14;
+                rsiArray.push(100 - (100 / (1 + (avgGain / (avgLoss===0?1:avgLoss)))));
+            }
+        }
+        // Potong RSI array agar sejajar dengan visible candles
+        let visibleRSI = rsiArray.slice(-maxVisible);
+
+        // MA10 & MA20
+        for (let i = 0; i < candles.length; i++) {
+            // MA10
+            if (i < 9) { ma10.push(null); } else {
+                let sum10 = 0; for(let j=0; j<10; j++) sum10 += candles[i-j].close;
+                ma10.push(sum10/10);
+            }
+            // MA20
+            if (i < 19) { ma20.push(null); } else {
+                let sum20 = 0; for(let j=0; j<20; j++) sum20 += candles[i-j].close;
+                ma20.push(sum20/20);
+            }
+        }
+
+        // Hitung skala harga Y
+        let minP = Math.min(...candles.map(c => c.low)); let maxP = Math.max(...candles.map(c => c.high));
+        ma10.forEach(v => { if(v !== null && v < minP) minP = v; if(v !== null && v > maxP) maxP = v; });
+        ma20.forEach(v => { if(v !== null && v < minP) minP = v; if(v !== null && v > maxP) maxP = v; });
+        const rng = maxP - minP || 1; minP -= rng * 0.1; maxP += rng * 0.1; const adjRng = maxP - minP;
+        const getY = (p) => padT + hMain - ((p - minP) / adjRng * hMain);
+
+        // --- 2. Gambar MAIN CHART ---
+        // Grid
+        ctxMain.strokeStyle = getComputedStyle(document.body).getPropertyValue('--chart-grid'); ctxMain.lineWidth = 1; ctxMain.beginPath();
+        for(let i=0; i<6; i++) { 
+            let y = padT + (hMain/5)*i; ctxMain.moveTo(0, y); ctxMain.lineTo(wMain, y); 
+            ctxMain.fillStyle = getComputedStyle(document.body).getPropertyValue('--chart-text'); ctxMain.font = '11px monospace'; 
+            ctxMain.fillText(fNum(maxP - (adjRng/5)*i), wMain + 8, y + 4); 
+        } ctxMain.stroke();
+
+        // Support & Resistance Lines
+        ctxMain.setLineDash([5, 5]); ctxMain.lineWidth = 1.5;
+        // Res
+        ctxMain.strokeStyle = 'rgba(246, 70, 93, 0.6)'; ctxMain.beginPath();
+        ctxMain.moveTo(0, getY(resistance)); ctxMain.lineTo(wMain, getY(resistance)); ctxMain.stroke();
+        ctxMain.fillStyle = 'rgba(246, 70, 93, 0.8)'; ctxMain.fillText("RESIST", 5, getY(resistance)-5);
+        // Sup
+        ctxMain.strokeStyle = 'rgba(14, 203, 129, 0.6)'; ctxMain.beginPath();
+        ctxMain.moveTo(0, getY(support)); ctxMain.lineTo(wMain, getY(support)); ctxMain.stroke();
+        ctxMain.fillStyle = 'rgba(14, 203, 129, 0.8)'; ctxMain.fillText("SUPP", 5, getY(support)-5);
+        ctxMain.setLineDash([]); // Reset
+
+        // MA20 (Kuning)
+        ctxMain.beginPath(); ctxMain.strokeStyle = getComputedStyle(document.body).getPropertyValue('--chart-ma20'); ctxMain.lineWidth = 2; let s20 = false;
+        ma20.forEach((v, i) => { if (v === null) return; let cx = getX(i); let cy = getY(v); if (!s20) { ctxMain.moveTo(cx, cy); s20 = true; } else { ctxMain.lineTo(cx, cy); } }); ctxMain.stroke();
+
+        // MA10 (Biru)
+        ctxMain.beginPath(); ctxMain.strokeStyle = getComputedStyle(document.body).getPropertyValue('--chart-ma10'); ctxMain.lineWidth = 2; let s10 = false;
+        ma10.forEach((v, i) => { if (v === null) return; let cx = getX(i); let cy = getY(v); if (!s10) { ctxMain.moveTo(cx, cy); s10 = true; } else { ctxMain.lineTo(cx, cy); } }); ctxMain.stroke();
+
+        // Candlesticks
+        const cUp = getComputedStyle(document.body).getPropertyValue('--green'); const cDn = getComputedStyle(document.body).getPropertyValue('--red');
+        candles.forEach((c, i) => {
+            const up = c.close >= c.open; ctxMain.fillStyle = up ? cUp : cDn; ctxMain.strokeStyle = up ? cUp : cDn; ctxMain.lineWidth = 1.5;
+            const cx = getX(i); 
+            ctxMain.beginPath(); ctxMain.moveTo(cx, getY(c.high)); ctxMain.lineTo(cx, getY(c.low)); ctxMain.stroke();
+            const bodyY = up ? getY(c.close) : getY(c.open); const bodyH = Math.max(Math.abs(getY(c.close) - getY(c.open)), 1.5);
+            ctxMain.fillRect(cx - (cW/2) + sp, bodyY, cW - (sp*2), bodyH);
+        });
+
+        // Current Price Line
+        const currentPrice = Market[selectedAsset].price; const currentY = getY(currentPrice);
+        const isUp = candles[candles.length-1].close >= candles[candles.length-1].open;
+        ctxMain.beginPath(); ctxMain.setLineDash([4, 4]); ctxMain.strokeStyle = isUp ? cUp : cDn; ctxMain.lineWidth = 1;
+        ctxMain.moveTo(0, currentY); ctxMain.lineTo(wMain, currentY); ctxMain.stroke(); ctxMain.setLineDash([]); 
+        ctxMain.fillStyle = isUp ? cUp : cDn; ctxMain.fillRect(wMain, currentY - 10, padR, 20);
+        ctxMain.fillStyle = '#ffffff'; ctxMain.font = 'bold 11px monospace'; ctxMain.fillText(fNum(currentPrice), wMain + 5, currentY + 4);
+
+        // --- 3. Gambar RSI CHART ---
+        const getRsiY = (val) => 10 + hRsi - ((val / 100) * hRsi);
+        
+        // 70 & 30 Lines
+        ctxRsi.setLineDash([3, 3]); ctxRsi.lineWidth = 1;
+        ctxRsi.strokeStyle = 'rgba(246, 70, 93, 0.8)'; ctxRsi.beginPath(); ctxRsi.moveTo(0, getRsiY(70)); ctxRsi.lineTo(wRsi, getRsiY(70)); ctxRsi.stroke();
+        ctxRsi.fillStyle = 'rgba(246, 70, 93, 0.8)'; ctxRsi.font = '10px monospace'; ctxRsi.fillText("70 OVB", wRsi + 5, getRsiY(70) + 3);
+        
+        ctxRsi.strokeStyle = 'rgba(14, 203, 129, 0.8)'; ctxRsi.beginPath(); ctxRsi.moveTo(0, getRsiY(30)); ctxRsi.lineTo(wRsi, getRsiY(30)); ctxRsi.stroke();
+        ctxRsi.fillStyle = 'rgba(14, 203, 129, 0.8)'; ctxRsi.fillText("30 OVS", wRsi + 5, getRsiY(30) + 3);
+        ctxRsi.setLineDash([]);
+
+        // RSI Line
+        ctxRsi.beginPath(); ctxRsi.strokeStyle = '#a855f7'; ctxRsi.lineWidth = 2; let sRsi = false;
+        visibleRSI.forEach((v, i) => { 
+            if (v === null) return; 
+            let cx = getX(i); let cy = getRsiY(v); 
+            if (!sRsi) { ctxRsi.moveTo(cx, cy); sRsi = true; } else { ctxRsi.lineTo(cx, cy); } 
+        }); ctxRsi.stroke();
+
+        canvasMain.chartMap = { minP, maxP, adjRng, h: hMain, padTop: padT, cW, candles, visibleRSI };
+
+        // --- 4. Status Trend ---
+        updateTrendIndicator(ma10, ma20);
+    }
+
+    function updateTrendIndicator(ma10Array, ma20Array) {
+        const trendEl = document.getElementById('dh-trend');
+        const m10 = ma10Array[ma10Array.length - 1]; const m20 = ma20Array[ma20Array.length - 1];
+        if(!m10 || !m20) return;
+
+        if(m10 > m20) { trendEl.innerText = "UPTREND 📈"; trendEl.className = "status-badge stat-uptrend"; } 
+        else if (m10 < m20) { trendEl.innerText = "DOWNTREND 📉"; trendEl.className = "status-badge stat-downtrend"; } 
+        else { trendEl.innerText = "SIDEWAYS ➖"; trendEl.className = "status-badge stat-sideways"; }
+    }
+    
+    // Interaksi Hover Tooltip
+    function handleTooltip(e) {
+        if (!selectedAsset) return;
+        const r = document.getElementById('wrapper-main').getBoundingClientRect(); const mX = e.clientX - r.left; const map = canvasMain.chartMap; 
+        if (!map || !map.candles || map.candles.length === 0) return; const i = Math.floor(mX / map.cW);
+        if (i >= 0 && i < map.candles.length) { 
+            const c = map.candles[i]; const rsiVal = map.visibleRSI[i] ? fNum(map.visibleRSI[i]) : '-';
+            tooltip.style.opacity = 1; 
+            tooltip.style.left = Math.min(mX + 15, canvasMain.width - 120) + 'px'; tooltip.style.top = Math.max(10, e.clientY - r.top - 50) + 'px'; 
+            tooltip.innerHTML = `
+                <div class="tooltip-row"><span class="tooltip-lbl">O:</span> <strong>${fNum(c.open)}</strong></div>
+                <div class="tooltip-row"><span class="tooltip-lbl">H:</span> <strong style="color:var(--green)">${fNum(c.high)}</strong></div>
+                <div class="tooltip-row"><span class="tooltip-lbl">L:</span> <strong style="color:var(--red)">${fNum(c.low)}</strong></div>
+                <div class="tooltip-row"><span class="tooltip-lbl">C:</span> <strong>${fNum(c.close)}</strong></div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
+                <div class="tooltip-row"><span class="tooltip-lbl" style="color:var(--purple)">RSI(14):</span> <strong>${rsiVal}</strong></div>
+            `; 
+        } else { tooltip.style.opacity = 0; }
+    }
+    document.getElementById('chart-container-div').addEventListener('mousemove', handleTooltip);
+    document.getElementById('chart-container-div').addEventListener('mouseleave', () => tooltip.style.opacity = 0);
+
+    // =========================================================================
+    // 🖥️ 4. UI LIST, TRADE PANEL
+    // =========================================================================
+
+    function filterMarket(type, btnElement) {
+        currentMarketFilter = type;
+        document.querySelectorAll('.m-tab').forEach(el => el.classList.remove('active'));
+        if(btnElement) btnElement.classList.add('active');
+        buildMarketListDOM();
+    }
+
+    function buildMarketListDOM() {
+        const listContainer = document.getElementById('market-list-container');
+        listContainer.innerHTML = '';
+        
+        Object.keys(Market).forEach(key => {
+            if (currentMarketFilter !== 'all' && Market[key].type !== currentMarketFilter) return;
+            const m = Market[key];
+            const chgColor = m.change >= 0 ? 'var(--green)' : 'var(--red)';
+            const chgSign = m.change > 0 ? '+' : '';
+            
+            listContainer.innerHTML += `
+                <div class="market-item ${key === selectedAsset ? 'active' : ''}" id="item-${key}" onclick="selectAsset('${key}')">
+                    <div><div class="m-code">${m.code}</div><div class="m-name">${m.name}</div></div>
+                    <div class="m-price-col">
+                        <div class="m-price" style="color:${chgColor}" id="list-price-${key}">${fNum(m.price)}</div>
+                        <div class="m-change" style="color:${chgColor}" id="list-change-${key}">${chgSign}${fNum(m.change)}%</div>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function selectAsset(key) { 
+        selectedAsset = key; 
+        document.querySelectorAll('.market-item').forEach(el => el.classList.remove('active'));
+        const activeItem = document.getElementById(`item-${selectedAsset}`);
+        if(activeItem) activeItem.classList.add('active');
+        document.getElementById('market-layout-container').classList.add('show-detail');
+
+        const m = Market[selectedAsset];
+        document.getElementById('dh-code').innerText = m.code;
+        document.getElementById('dh-name').innerText = m.name;
+        document.getElementById('order-unit-label').innerText = m.code.split('/')[0] || m.code;
+        
+        document.getElementById('order-qty').value = ''; 
+        calcOrder(); updateDetailPanel();
+        setTimeout(() => { if(document.getElementById('view-market').classList.contains('active')) { resizeCanvas(); drawCharts(); } }, 50);
+    }
+
+    function closeDetailMobile() {
+        document.getElementById('market-layout-container').classList.remove('show-detail');
+        document.querySelectorAll('.market-item').forEach(el => el.classList.remove('active'));
+        selectedAsset = null;
+    }
+
+    function updateDetailPanel() {
+        if (!selectedAsset) return;
+        const m = Market[selectedAsset]; const p = Portfolio.assets[selectedAsset];
+        
+        const elChange = document.getElementById('dh-change');
+        elChange.innerText = (m.change > 0 ? '+' : '') + fNum(m.change) + '%';
+        elChange.className = `dh-val ${m.change >= 0 ? 'text-green' : 'text-red'}`;
+
+        const avg = p.qty > 0 ? (p.cost / p.qty) : 0; 
+        const currentVal = p.qty * m.price * (1 - FEE); 
+        const unRealizedPL = currentVal - p.cost;
+        const plPerc = p.cost > 0 ? (unRealizedPL / p.cost) * 100 : 0;
+        
+        document.getElementById('port-qty').innerText = `${p.qty} Unit`; 
+        document.getElementById('port-avg').innerText = fMoney(avg); 
+        document.getElementById('port-bal').innerText = fMoney(Portfolio.balance);
+        
+        const plEl = document.getElementById('port-pl'); 
+        plEl.innerText = `${unRealizedPL > 0 ? '+' : ''}${fMoney(unRealizedPL)} (${plPerc > 0 ? '+' : ''}${fNum(plPerc)}%)`; 
+        plEl.style.color = p.qty === 0 ? 'var(--text-main)' : (unRealizedPL > 0 ? 'var(--green)' : 'var(--red)');
+    }
+
+    function calcOrder() {
+        if(!selectedAsset) return;
+        const qty = parseFloat(document.getElementById('order-qty').value) || 0;
+        document.getElementById('order-total').innerText = fMoney(qty * Market[selectedAsset].price * (1 + FEE));
+    }
+    
+    function setQtyPerc(perc) {
+        if(!selectedAsset) return;
+        const price = Market[selectedAsset].price;
+        let qty = Math.floor((Portfolio.balance / (price * (1 + FEE))) * perc);
+        if (qty === 0 && Portfolio.assets[selectedAsset].qty > 0) qty = Math.floor(Portfolio.assets[selectedAsset].qty * perc);
+        if (qty < 1) qty = 1;
+        document.getElementById('order-qty').value = qty; calcOrder();
+    }
+
+    function showToast(msg, isError = false) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${isError ? 'error' : ''}`;
+        toast.innerHTML = `<span style="font-size:1.2rem">${isError?'❌':'✅'}</span> <span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.animation = 'fadeOut 0.3s forwards'; setTimeout(()=>toast.remove(), 300); }, 3000);
+    }
+
+    function setBtnLoading(action, isLoading) {
+        const btnId = action === 'buy' ? 'btn-buy' : 'btn-sell';
+        const btn = document.getElementById(btnId);
+        const text = btn.querySelector('.btn-text');
+        const spinner = btn.querySelector('.spinner');
+        document.getElementById('btn-buy').disabled = isLoading;
+        document.getElementById('btn-sell').disabled = isLoading;
+        if (isLoading) { text.style.display = 'none'; spinner.style.display = 'block'; } else { text.style.display = 'block'; spinner.style.display = 'none'; }
+    }
+
+    function executeProTrade(action) {
+        if(!selectedAsset) return;
+        const qty = parseInt(document.getElementById('order-qty').value);
+        if (!qty || qty <= 0) return showToast("Jumlah unit tidak valid!", true);
+        
+        const m = Market[selectedAsset]; 
+        const totalBuy = qty * m.price * (1 + FEE);
+        
+        if (action === 'buy' && Portfolio.balance < totalBuy) return showToast("Saldo tunai tidak mencukupi!", true);
+        if (action === 'sell' && Portfolio.assets[selectedAsset].qty < qty) return showToast("Aset tidak mencukupi untuk dijual!", true);
+
+        setBtnLoading(action, true);
+        
+        setTimeout(() => {
+            const p = Portfolio.assets[selectedAsset];
+            let tVal = 0; const execPrice = Market[selectedAsset].price;
+
+            if (action === 'buy') {
+                tVal = qty * execPrice * (1 + FEE);
+                Portfolio.balance -= tVal; p.qty += qty; p.cost += tVal;
+                showToast(`Beli ${qty} ${m.code} dieksekusi di ${fNum(execPrice)}`);
+            } else if (action === 'sell') {
+                tVal = qty * execPrice * (1 - FEE);
+                const propCost = p.cost * (qty / p.qty); 
+                Portfolio.balance += tVal; p.qty -= qty; p.cost -= propCost;
+                if(p.qty === 0) p.cost = 0; 
+                showToast(`Jual ${qty} ${m.code} dieksekusi di ${fNum(execPrice)}`);
+            }
+            
+            recordHistory(action.toUpperCase(), m.name, qty, execPrice, tVal);
+            document.getElementById('order-qty').value = ''; 
+            calcOrder(); updateDetailPanel(); setBtnLoading(action, false);
+        }, 500); 
+    }
+
+    function recordHistory(type, name, qty, price, total) {
+        Portfolio.tradeHistory.unshift({ time: getTime(), type, name, qty, price, total });
+        const tbody = document.getElementById('trade-history-body'); tbody.innerHTML = '';
+        Portfolio.tradeHistory.forEach(t => {
+            const color = t.type === 'BUY' ? 'var(--green)' : 'var(--red)';
+            tbody.innerHTML += `<tr><td>${t.time}</td><td><strong>${t.name}</strong></td><td style="color:${color}; font-weight:bold;">${t.type}</td><td>${fNum(t.price)}</td><td>${t.qty}</td><td>${fMoney(t.total)}</td></tr>`;
+        });
+    }
+
+    // =========================================================================
+    // 📰 5. NEWS UI & BOOK ACADEMY
+    // =========================================================================
+
+    function setNewsFilter(filterCat) {
+        currentNewsFilter = filterCat;
+        renderNewsFeed();
+        currentMarketFilter = filterCat;
+        document.querySelectorAll('.m-tab').forEach(el => el.classList.remove('active'));
+        const targetTab = document.getElementById(`mtab-${filterCat}`);
+        if(targetTab) targetTab.classList.add('active');
+        buildMarketListDOM();
+    }
+
+    function renderNewsFeed(latestBatchId = null) {
+        const counts = { all: globalNewsFeed.length, saham: 0, crypto: 0, forex: 0 };
+        globalNewsFeed.forEach(n => {
+            if(n.cats.includes('saham')) counts.saham++;
+            if(n.cats.includes('crypto')) counts.crypto++;
+            if(n.cats.includes('forex')) counts.forex++;
+        });
+
+        let trend = { saham: 0, crypto: 0, forex: 0 };
+        activeEventsQueue.forEach(item => {
+            if(item.ev.cats.includes('saham')) trend.saham += (item.ev.effects.globalEconomy || 0) + (item.ev.effects.commodityPrice || 0) - (item.ev.effects.interestRate || 0);
+            if(item.ev.cats.includes('crypto')) trend.crypto += (item.ev.effects.riskAppetite || 0);
+            if(item.ev.cats.includes('forex')) trend.forex += (item.ev.effects.interestRate || 0) + (item.ev.effects.globalEconomy || 0);
+        });
+
+        const getTr = (val) => {
+            if(val > 0) return '<span class="trend-icon trend-up">▲</span>';
+            if(val < 0) return '<span class="trend-icon trend-down">▼</span>';
+            return '<span class="trend-icon" style="color:var(--text-muted)">➖</span>';
+        };
+
+        const fBar = document.getElementById('news-filter-bar');
+        if(fBar) {
+            fBar.innerHTML = `
+                <button class="news-filter-btn ${currentNewsFilter === 'all' ? 'active' : ''}" onclick="setNewsFilter('all')">🌐 All News <span class="news-count">${counts.all}</span></button>
+                <button class="news-filter-btn ${currentNewsFilter === 'saham' ? 'active' : ''}" onclick="setNewsFilter('saham')">📈 Saham <span class="news-count">${counts.saham}</span> ${getTr(trend.saham)}</button>
+                <button class="news-filter-btn ${currentNewsFilter === 'crypto' ? 'active' : ''}" onclick="setNewsFilter('crypto')">🪙 Crypto <span class="news-count">${counts.crypto}</span> ${getTr(trend.crypto)}</button>
+                <button class="news-filter-btn ${currentNewsFilter === 'forex' ? 'active' : ''}" onclick="setNewsFilter('forex')">💱 Forex <span class="news-count">${counts.forex}</span> ${getTr(trend.forex)}</button>
+            `;
+        }
+
+        const container = document.getElementById('news-feed-container');
+        if(!container) return;
+        
+        container.innerHTML = '';
+        let filtered = currentNewsFilter === 'all' ? globalNewsFeed : globalNewsFeed.filter(n => n.cats.includes(currentNewsFilter));
+        
+        if (filtered.length === 0) { container.innerHTML = `<div style="text-align:center; padding: 30px; color: var(--text-muted);">Menganalisis radar market...</div>`; return; }
+
+        filtered.forEach(n => {
+            const isNew = n.batchId === latestBatchId;
+            let badges = '';
+            if (n.cats.includes('saham')) badges += '<span class="n-badge saham">Saham</span>';
+            if (n.cats.includes('crypto')) badges += '<span class="n-badge crypto">Crypto</span>';
+            if (n.cats.includes('forex')) badges += '<span class="n-badge forex">Forex</span>';
+
+            container.innerHTML += `
+                <div class="news-item ${isNew ? 'highlight' : ''}">
+                    <div class="news-header">
+                        <div class="news-badges">${badges}</div>
+                        <div class="news-time">${n.time} ${isNew ? '<span class="new-tag">BARU</span>' : ''}</div>
+                    </div>
+                    <div class="news-title">${n.title}</div>
+                    <div class="news-desc">${n.desc}</div>
+                </div>`;
+        });
+    }
+
+    const bookData = [
+        {
+            title: "BAB 1: Dasar Trading",
+            content: `<h1>Pondasi Market</h1><p>Memahami 3 ekosistem utama:</p><ul><li><span class="hl hl-blue">Saham:</span> Kepemilikan perusahaan. Bergerak karena ekonomi riil.</li><li><span class="hl hl-purple">Crypto:</span> Aset digital tinggi risiko. Mengandalkan sentimen.</li><li><span class="hl hl-green">Forex:</span> Mata uang negara (USD). Pusat kontrol semua market.</li></ul><h2>Hukum Supply & Demand</h2><p>Semakin banyak yang beli (Demand), harga naik. Semakin panik yang jual (Supply), harga turun.</p>`,
+            q_text: "Jika Demand Bitcoin naik tapi Supply tetap, apa yang terjadi?",
+            options: [ { text: "Harga turun.", isCorrect: false, expl: "Salah. Permintaan tinggi menaikkan harga." }, { text: "Harga naik tajam.", isCorrect: true, expl: "Benar! Demand > Supply = Uptrend." } ]
+        },
+        {
+            title: "BAB 2: Mekanisme Market",
+            content: `<h1>Peran Sentral USD</h1><p>USD adalah raja uang. Jika Bunga AS naik, uang lari ke USD dari aset berisiko (Crypto/Saham). Inilah yang disebut <strong>Capital Flow</strong>.</p>`,
+            q_text: "Suku Bunga AS dinaikkan ekstrem. Apa reaksi portofolio Crypto Anda?",
+            options: [ { text: "Tahan, semua akan naik.", isCorrect: false, expl: "Salah. Uang sedang disedot ke USD." }, { text: "Jual/Kurangi risiko, karena uang lari ke USD.", isCorrect: true, expl: "Tepat! Capital flow menjauh dari aset risiko tinggi." } ]
+        },
+        {
+            title: "BAB 3: Analisis Teknikal",
+            content: `<h1>RSI & Support Resistance</h1><p>Anda telah membuka fitur <strong>Analisis Teknikal</strong> di Chart! <br><br>Garis <strong>Support (Hijau)</strong> adalah lantai tempat harga sering memantul naik. Garis <strong>Resistance (Merah)</strong> adalah atap tempat harga sulit tembus.<br><br>Panel bawah adalah <strong>RSI</strong>. Jika RSI menyentuh angka 30, aset sedang <em>Oversold</em> (jenuh jual = potensi naik). Jika RSI menyentuh 70, aset sedang <em>Overbought</em> (jenuh beli = potensi turun).</p>`,
+            q_text: "Harga koin sedang membentur garis merah (Resistance) dan indikator RSI menunjukkan angka 85. Apa probabilitas selanjutnya?",
+            options: [ { text: "Harga akan terus terbang ke bulan.", isCorrect: false, expl: "Salah. Momentum sudah jenuh beli (Overbought) dan tertahan di atap." }, { text: "Harga berpotensi besar untuk turun / koreksi.", isCorrect: true, expl: "Sangat cerdas! Ini adalah setup klasik untuk sinyal SELL." } ]
+        },
+        {
+            title: "BAB 4: Korelasi Market",
+            content: `<h1>Efek Domino</h1><p>Bunga Naik ➔ USD Kuat ➔ Crypto Turun ➔ Beban utang Saham tinggi (turun). Tapi Saham Bank malah naik (untung margin kredit). Tidak ada yang 100% pasti, ini soal probabilitas.</p>`,
+            q_text: "Terjadi krisis global dan kepanikan massal. Aset mana yang bertindak sebagai Safe Haven?",
+            options: [ { text: "Saham Teknologi", isCorrect: false, expl: "Saham tech sangat rentan saat krisis." }, { text: "Mata Uang Yen (JPY) / Swiss Franc", isCorrect: true, expl: "Benar! Uang lari ke mata uang yang paling aman secara historis." } ]
+        },
+        {
+            title: "BAB 5: Strategi Trading",
+            content: `<h1>Manajemen Risiko</h1><p>Jangan beli karena chart sudah terbang tinggi (FOMO). Jangan jual karena takut chart turun padahal data ekonomi membaik. Gunakan porsi 25% atau 50%, jangan All-in 1 aset.</p>`,
+            q_text: "Laporan laba rilis dan hasilnya bagus. Tapi harga saham tiba-tiba turun. Kenapa?",
+            options: [ { text: "Market error.", isCorrect: false, expl: "Bukan error. Market selalu selangkah lebih maju." }, { text: "Buy the Rumor, Sell the News.", isCorrect: true, expl: "Tepat. Trader pro jual (Take Profit) saat berita baik rilis." } ]
+        },
+        {
+            title: "BAB 6: Analisis Lanjutan",
+            content: `<h1>Puzzle Market</h1><p>Gabungkan News (Fundamental) + Chart (Teknikal). Jika berita ekonomi mendukung (Risk-On), dan chart sedang di bawah (Koreksi) = Waktu Buy terbaik.</p>`,
+            q_text: "Bunga bank diturunkan (uang melimpah/risk-on). Chart Crypto sedang merah dalam. Keputusan Anda?",
+            options: [ { text: "Beli (Buy) karena fundamental kuat dan harga diskon.", isCorrect: true, expl: "Sempurna! Setup terbaik trader pro." }, { text: "Jual karena chart merah.", isCorrect: false, expl: "Salah. Chart merah di fundamental yang bagus adalah peluang." } ]
+        },
+        {
+            title: "BAB 7: Studi Kasus",
+            content: `<h1>Ujian Final</h1><p>Perang pecah. Krisis suplai komoditas terjadi. Bank Sentral naikkan bunga untuk meredam inflasi.</p>`,
+            q_text: "Bagaimana Anda menempatkan uang Anda?",
+            options: [ { text: "Jual Crypto, Beli Saham Batubara (ADRO) & USD.", isCorrect: true, expl: "Luar Biasa! Anda paham Capital Flow sepenuhnya." }, { text: "Beli Crypto mumpung murah.", isCorrect: false, expl: "Krisis & Bunga Naik akan menekan Crypto dalam jangka waktu lama." } ]
+        }
+    ];
+
+    let currentChapter = 0;
+    function renderBook() {
+        const sidebar = document.getElementById('book-sidebar'); 
+        sidebar.innerHTML = '<div class="book-sidebar-header">DAFTAR ISI MATERI</div>';
+        bookData.forEach((ch, idx) => {
+            const btn = document.createElement('button'); 
+            btn.className = `chapter-btn ${idx === currentChapter ? 'active' : ''}`;
+            btn.innerText = ch.title.split(':')[0]; 
+            btn.onclick = () => { currentChapter = idx; renderBook(); }; 
+            sidebar.appendChild(btn);
+        });
+
+        const ch = bookData[currentChapter]; 
+        const main = document.getElementById('book-content');
+        
+        let optionsHtml = ''; 
+        ch.options.forEach((opt, oIdx) => { 
+            optionsHtml += `<button class="quiz-btn" id="quiz-btn-${oIdx}" onclick="answerQuiz(${currentChapter}, ${oIdx})">${['A', 'B'][oIdx]}. ${opt.text}</button>`; 
+        });
+
+        main.innerHTML = `
+            ${ch.content}
+            <div class="quiz-box">
+                <div class="quiz-title">📝 KUIS ANALISIS LATIHAN</div>
+                <div class="quiz-q">${ch.q_text}</div>
+                <div class="quiz-options">${optionsHtml}</div>
+                <div class="quiz-explanation" id="quiz-expl"></div>
+            </div>
+            ${currentChapter < bookData.length - 1 ? 
+                `<button onclick="currentChapter++; renderBook(); document.getElementById('book-content').scrollTop = 0;" style="margin-top: 30px; padding: 15px 25px; background: var(--blue); color: white; border: none; border-radius: 8px; cursor: pointer; float: right; font-weight: bold; font-size: 1rem;">Lanjut Bab Berikutnya ➔</button>` : 
+                '<div style="margin-top: 30px; text-align: center; color: var(--green); font-weight: bold; padding: 20px; background: var(--hl-green); border-radius: 8px; font-size: 1.1rem;">🎉 Selamat! Anda telah Lulus Academy. Kembali ke tab MARKET dan hasilkan profit!</div>'
+            }
+        `;
+    }
+
+    function answerQuiz(cIdx, oIdx) {
+        const ch = bookData[cIdx]; const isCorrect = ch.options[oIdx].isCorrect;
+        ch.options.forEach((opt, idx) => {
+            const btn = document.getElementById(`quiz-btn-${idx}`); btn.disabled = true;
+            if (idx === oIdx) btn.classList.add(isCorrect ? 'correct' : 'wrong');
+            else if (opt.isCorrect) { btn.style.border = "1px solid var(--green)"; btn.style.color = "var(--green)"; }
+        });
+        const explDiv = document.getElementById('quiz-expl'); explDiv.style.display = "block"; explDiv.style.borderColor = isCorrect ? "var(--green)" : "var(--red)";
+        explDiv.innerHTML = `<strong>${isCorrect ? '✅ TEPAT!' : '❌ KELIRU!'}</strong><br><br>${ch.options[oIdx].expl}`;
+    }
+
+    function switchTab(tabId, btnElement) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`view-${tabId}`).classList.add('active'); btnElement.classList.add('active'); document.getElementById('main-scroll').scrollTop = 0;
+        if(tabId === 'market' && selectedAsset) { setTimeout(resizeCanvas, 50); }
+        if(tabId === 'event') { renderNewsFeed(); }
+    }
+
+    window.onload = () => {
+        buildMarketListDOM();
+        renderBook();
+        if(window.innerWidth > 992) { selectAsset('BTC'); }
+        setInterval(CoreEngineTick, 1000); 
+    }
+</script>
+</body>
+</html>
