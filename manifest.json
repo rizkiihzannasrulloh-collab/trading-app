@@ -1,0 +1,13 @@
+{
+  "background_color": "#0b0e11",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Trading simulator",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Tradeapp",
+  "start_url": "/",
+  "theme_color": "#0b0e11",
+  "id": "trading-simulator-rizki",
+  "description": "Aplikasi simulasi trading saham, crypto, dan forex untuk belajar investasi"
+}
